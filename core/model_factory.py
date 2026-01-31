@@ -3,14 +3,8 @@ from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-try:
-    from langchain_groq import ChatGroq
-except ImportError:
-    ChatGroq = None
-try:
-    from langchain_community.chat_models import ChatOllama
-except ImportError:
-    ChatOllama = None
+from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 
 
 class ModelFactory:
@@ -59,7 +53,7 @@ class ModelFactory:
 
         elif provider == "ollama":
             if ChatOllama is None:
-                raise ImportError("langchain-community is not installed.")
+                raise ImportError("langchain-ollama is not installed.")
             # Ollama is local, usually no key
             return ChatOllama(
                 model=model_name,

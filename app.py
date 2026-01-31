@@ -118,8 +118,8 @@ def main():
             }
 
             try:
-                # Increased timeout to 180s for agentic workflows
-                response = requests.post(f"{API_URL}/generate", json=payload, timeout=180)
+                # Increased timeout to 300s for agentic workflows
+                response = requests.post(f"{API_URL}/generate", json=payload, timeout=300)
 
                 if response.status_code == 200:
                     data = response.json()
