@@ -13,6 +13,11 @@ class ResumeState(TypedDict):
     raw_experience: str
     sample_latex: str  # The template style to match
 
+    # --- PARSED TEMPLATE ---
+    template_preamble: Optional[str]   # Verbatim preamble (preserved programmatically)
+    template_body: Optional[str]       # Original body (structural reference for LLM)
+    command_cheatsheet: Optional[str]  # Custom command signatures
+
     # --- INTERNAL STATE (Agent Thoughts) ---
     job_analysis: Optional[str]      # Output of Analyzer
     strategy_plan: Optional[str]     # Output of Strategist

@@ -50,7 +50,6 @@ def get_ollama_models():
 def render_sidebar():
     st.sidebar.header("🤖 Model Settings")
 
-    provider_display = st.sidebar.selectbox("Provider", list(PROVIDERS.keys()))
     # Map display name to internal ID
     provider_map = {
         "OpenAI": "openai",
@@ -59,20 +58,81 @@ def render_sidebar():
         "Groq": "groq",
         "Ollama": "ollama"
     }
-    provider_id = provider_map[provider_display]
 
-    if provider_display == "Ollama":
-        available_models = get_ollama_models()
+    # Advanced mode toggle
+    advanced_mode = st.sidebar.checkbox("🔧 Advanced: Individual Models per Agent", value=False)
+
+    if not advanced_mode:
+        # Simple mode: one model for all agents
+        st.sidebar.subheader("Unified Model")
+        provider_display = st.sidebar.selectbox("Provider", list(PROVIDERS.keys()), key="unified_provider")
+        provider_id = provider_map[provider_display]
+
+        if provider_display == "Ollama":
+            available_models = get_ollama_models()
+        else:
+            available_models = PROVIDERS[provider_display]
+
+        model = st.sidebar.selectbox("Model", available_models, key="unified_model")
+
+        api_key = None
+        if provider_id != "ollama":
+            api_key = st.sidebar.text_input(f"{provider_display} API Key", type="password", key="unified_key")
+
+        return {
+            "mode": "simple",
+            "unified": {
+                "provider": provider_id,
+                "model": model,
+                "api_key": api_key
+            }
+        }
     else:
-        available_models = PROVIDERS[provider_display]
+        # Advanced mode: individual models for each agent
+        configs = {}
 
-    model = st.sidebar.selectbox("Model", available_models)
+        for agent_name in ["Analyzer", "Strategist", "Developer"]:
+            st.sidebar.markdown(f"**{agent_name} Agent**")
 
-    api_key = None
-    if provider_id != "ollama":
-        api_key = st.sidebar.text_input(f"{provider_display} API Key", type="password")
+            provider_display = st.sidebar.selectbox(
+                "Provider",
+                list(PROVIDERS.keys()),
+                key=f"{agent_name}_provider"
+            )
+            provider_id = provider_map[provider_display]
 
-    return provider_id, model, api_key
+            if provider_display == "Ollama":
+                available_models = get_ollama_models()
+            else:
+                available_models = PROVIDERS[provider_display]
+
+            model = st.sidebar.selectbox(
+                "Model",
+                available_models,
+                key=f"{agent_name}_model"
+            )
+
+            api_key = None
+            if provider_id != "ollama":
+                api_key = st.sidebar.text_input(
+                    "API Key",
+                    type="password",
+                    key=f"{agent_name}_key"
+                )
+
+            configs[agent_name.lower()] = {
+                "provider": provider_id,
+                "model": model,
+                "api_key": api_key
+            }
+
+            if agent_name != "Developer":  # Don't add divider after last agent
+                st.sidebar.divider()
+
+        return {
+            "mode": "advanced",
+            "configs": configs
+        }
 
 
 def main():
@@ -85,7 +145,7 @@ def main():
         st.error("⚠️ Backend API is not running. Please run `uvicorn app_server:app --reload` in a terminal.")
         st.stop()
 
-    provider_id, model, api_key = render_sidebar()
+    model_config = render_sidebar()
 
     # --- Inputs ---
     col1, col2 = st.columns(2)
@@ -108,14 +168,27 @@ def main():
             return
 
         with st.spinner("Agents are working... (Analyzing -> Strategizing -> Writing -> Compiling)"):
+            # Build payload based on mode
             payload = {
                 "job_description": job_desc,
                 "raw_experience": experience,
                 "sample_latex": sample_latex,
-                "provider": provider_id,
-                "model": model,
-                "api_key": api_key
             }
+
+            if model_config["mode"] == "simple":
+                # Legacy single model config
+                payload.update({
+                    "provider": model_config["unified"]["provider"],
+                    "model": model_config["unified"]["model"],
+                    "api_key": model_config["unified"]["api_key"]
+                })
+            else:
+                # Advanced mode: individual configs
+                payload.update({
+                    "analyzer_config": model_config["configs"]["analyzer"],
+                    "strategist_config": model_config["configs"]["strategist"],
+                    "developer_config": model_config["configs"]["developer"]
+                })
 
             try:
                 # Increased timeout to 300s for agentic workflows
